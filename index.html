@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Email Spam Classifier</title>
+    <!-- This links to PyScript, which lets us run Python in HTML -->
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        textarea { width: 80%; max-width: 500px; padding: 10px; font-size: 16px; border-radius: 8px;}
+        button { margin-top: 10px; padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 8px; background-color: #007bff; color: white; border: none;}
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #status { color: gray; font-style: italic; margin-bottom: 20px; }
+        #result { font-size: 24px; font-weight: bold; margin-top: 20px; color: #333333; }
+    </style>
+</head>
+<body>
+
+    <h1>Email Spam Classifier</h1>
+    <p id="status">Loading AI model into your browser... (This takes a few seconds)</p>
+
+    <textarea id="email-input" rows="6" placeholder="Copy and paste an email here..."></textarea><br>
+    <button id="classify-btn" py-click="classify_email" disabled>Classify Email</button>
+
+    <p id="result"></p>
+
+    <!-- Tell PyScript what Python packages to install in the browser -->
+    <py-config>
+        packages = ["scikit-learn", "joblib"]
+    </py-config>
+
+    <!-- Our Python Code -->
+    <script type="py">
+        import joblib
+        from pyodide.http import pyfetch
+        from js import document
+
+        # Function to download the model from GitHub to the browser's memory
+        async def setup_model():
+            response = await pyfetch("spam_classifier_model.joblib")
+            with open("spam_classifier_model.joblib", "wb") as f:
+                f.write(await response.bytes())
+
+            # Load the model
+            global model
+            model = joblib.load("spam_classifier_model.joblib")
+
+            # Update the website to show it's ready
+            document.getElementById("status").innerText = "Model Loaded! Ready to use."
+            document.getElementById("classify-btn").disabled = False
+
+        # Run the setup function immediately
+        await setup_model()
+
+        # The function that runs when the button is clicked
+        def classify_email(event):
+            text = document.getElementById("email-input").value
+            if not text.strip():
+                document.getElementById("result").innerText = "Please enter some text first."
+                return
+            
+            # Use the model to predict
+            prediction = model.predict([text])[0]
+            
+            # Show result on the screen
+            if prediction.strip().lower() == 'ham':
+                document.getElementById("result").innerText = "Safe Email (Ham) ✅"
+            else:
+                document.getElementById("result").innerText = "Spam 🚨"
+    </script>
+</body>
+</html>
